@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db.config');
 
+
 const Product = sequelize.define('Product', {
   name: {
     type: DataTypes.STRING,
@@ -20,6 +21,9 @@ const Product = sequelize.define('Product', {
   imageUrl: {
     type: DataTypes.STRING,
   },
+},{
+  tableName: 'Products', // Đảm bảo Sequelize tìm đúng bảng với tên 'products'
+  timestamps: true,
 });
 
 module.exports = Product;
