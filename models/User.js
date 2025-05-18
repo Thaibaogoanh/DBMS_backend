@@ -1,44 +1,58 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db.config');
+const bcrypt = require('bcryptjs');
 
 const User = sequelize.define('User', {
-  phone_number: {
-    type: DataTypes.STRING(15),
-    primaryKey: true,
-    allowNull: false,
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
-  username: {
+  name: {
     type: DataTypes.STRING,
-    allowNull: false,
-  },
-  full_name: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: false
   },
   email: {
     type: DataTypes.STRING,
-    unique: true,
     allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true
+    }
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: false
   },
-  gender: {
-    type: DataTypes.ENUM('Male', 'Female', 'Other'),
-    allowNull: true,
-  },
-  is_seller: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
-  avatar_url: {
+  image: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: true
   },
+  role: {
+    type: DataTypes.ENUM('user', 'admin'),
+    defaultValue: 'user'
+  }
 }, {
-  tableName: 'Users',  // Đảm bảo tên bảng
-  timestamps: false,
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
+  }
 });
+
+// Instance method to check password
+User.prototype.checkPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = User;

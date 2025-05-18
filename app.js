@@ -1,33 +1,40 @@
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./config/db.config'); // import sequelize instance
-const productRoutes = require('./routes/product.routes');
-const userRoutes = require('./routes/user.routes');
-const reviewRoutes = require('./routes/review.routes')
+const errorHandler = require('./middleware/errorHandler');
 require('dotenv').config();
+
+// Import routes
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-app.use('/api', productRoutes);
+// Routes
 app.use('/api', userRoutes);
-app.use('/api', reviewRoutes);
+app.use('/api', productRoutes);
+app.use('/api', orderRoutes);
 
 app.get('/', (req, res) => {
-  res.send('Welcome to the Clothing Store API');
+  res.send('Welcome to the Retail Store API');
 });
 
-sequelize.sync({}) // Chỉ nên dùng { force: true } khi bạn muốn tạo lại bảng (mất dữ liệu cũ)
+// Error handling middleware
+app.use(errorHandler);
+
+sequelize.sync({ alter: true })
   .then(() => {
     console.log('Database synced');
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
   })
   .catch((err) => {
     console.error('Error syncing database:', err);
   });
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});

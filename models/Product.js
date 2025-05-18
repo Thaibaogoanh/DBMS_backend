@@ -1,29 +1,47 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db.config');
 
-
 const Product = sequelize.define('Product', {
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
-  description: {
+  title: {
     type: DataTypes.STRING,
+    allowNull: false
   },
   price: {
-    type: DataTypes.FLOAT,
-    allowNull: false,
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false
   },
-  stock: {
+  oldPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
+  },
+  quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    defaultValue: 0
   },
-  imageUrl: {
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  category: {
     type: DataTypes.STRING,
+    allowNull: false
   },
-},{
-  tableName: 'Products', // Đảm bảo Sequelize tìm đúng bảng với tên 'products'
-  timestamps: true,
+  image: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  isNew: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
+}, {
+  timestamps: true
 });
 
 module.exports = Product;
