@@ -1,3 +1,4 @@
+// routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -7,25 +8,25 @@ const {
     updateProduct,
     deleteProduct,
     createProductReview
-} = require('../controllers/productController');
-const { protect, admin } = require('../middleware/auth');
+} = require('../controllers/productController'); // Đảm bảo đường dẫn đúng
+const { verifyToken, isAdmin } = require('../middleware/auth.middleware'); // Đảm bảo đường dẫn đúng
 
-// @route   GET /api/products
-router.get('/products', getProducts);
+// Public routes
+// GET /api/products/
+router.get('/', getProducts);
+// GET /api/products/:id
+router.get('/:id', getProductById);
 
-// @route   GET /api/products/:id
-router.get('/products/:id', getProductById);
+// Admin routes for managing products
+// POST /api/products/
+router.post('/', verifyToken, isAdmin, createProduct);
+// PUT /api/products/:id
+router.put('/:id', verifyToken, isAdmin, updateProduct);
+// DELETE /api/products/:id
+router.delete('/:id', verifyToken, isAdmin, deleteProduct);
 
-// @route   POST /api/products
-router.post('/products', protect, admin, createProduct);
+// User specific routes (require login)
+// POST /api/products/:id/reviews
+router.post('/:id/reviews', verifyToken, createProductReview);
 
-// @route   PUT /api/products/:id
-router.put('/products/:id', protect, admin, updateProduct);
-
-// @route   DELETE /api/products/:id
-router.delete('/products/:id', protect, admin, deleteProduct);
-
-// @route   POST /api/products/:id/reviews
-router.post('/products/:id/reviews', protect, createProductReview);
-
-module.exports = router; 
+module.exports = router;

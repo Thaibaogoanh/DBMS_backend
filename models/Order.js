@@ -1,30 +1,75 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db.config');
+module.exports = (sequelize, DataTypes) => {
+    const Order = sequelize.define('Order', {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        userId: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: 'Users',
+                key: 'id'
+            }
+        },
+        status: {
+            type: DataTypes.ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled'),
+            defaultValue: 'pending'
+        },
+        totalAmount: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+            validate: {
+                min: 0
+            }
+        },
+        shippingAddress: {
+            type: DataTypes.TEXT,
+            allowNull: false
+        },
+        paymentMethod: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        paymentStatus: {
+            type: DataTypes.ENUM('pending', 'completed', 'failed'),
+            defaultValue: 'pending'
+        },
+        trackingNumber: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        notes: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        }
+    }, {
+        timestamps: true,
+        indexes: [
+            {
+                fields: ['userId']
+            },
+            {
+                fields: ['status']
+            },
+            {
+                fields: ['paymentStatus']
+            }
+        ]
+    });
 
-const Order = sequelize.define('Order', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true
-    },
-    totalAmount: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
-    },
-    status: {
-        type: DataTypes.ENUM('pending', 'processing', 'shipped', 'delivered'),
-        defaultValue: 'pending'
-    },
-    shippingAddress: {
-        type: DataTypes.JSONB,
-        allowNull: false
-    },
-    paymentMethod: {
-        type: DataTypes.STRING,
-        allowNull: false
-    }
-}, {
-    timestamps: true
-});
+    // Define associations
+    Order.associate = (models) => {
+        Order.belongsTo(models.User, {
+            foreignKey: 'userId',
+            as: 'user'
+        });
+        Order.hasMany(models.OrderItem, {
+            foreignKey: 'orderId',
+            as: 'items'
+        });
+    };
 
-module.exports = Order; 
+    return Order;
+}; 

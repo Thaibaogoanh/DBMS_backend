@@ -1,7 +1,7 @@
 {
-  "name": "retail-web-app-backend",
+  "name": "retail-store-backend",
   "version": "1.0.0",
-  "description": "Backend for retail web application",
+  "description": "Backend for retail store application",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -13,15 +13,14 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
-    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "neo4j-driver": "^5.28.1",
     "pg": "^8.16.0",
     "pg-hstore": "^2.3.4",
-    "retail-web-app-backend": "file:",
-    "sequelize": "^6.37.7",
-    "stripe": "^12.0.0"
+    "retail-store-backend": "file:",
+    "sequelize": "^6.37.7"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

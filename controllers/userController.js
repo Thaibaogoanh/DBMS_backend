@@ -1,135 +1,74 @@
-const jwt = require('jsonwebtoken');
+// controllers/userController.js
 const { User } = require('../models');
 
-// Generate JWT
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE
-    });
-};
+// Các hàm trong file này sẽ tập trung vào quản lý người dùng từ góc độ admin
+// hoặc các tương tác người dùng không liên quan trực tiếp đến xác thực của người dùng hiện tại.
 
-// @desc    Register a new user
-// @route   POST /api/users/register
-// @access  Public
-const registerUser = async (req, res) => {
+// Ví dụ: Lấy danh sách tất cả người dùng (chỉ dành cho Admin)
+const getAllUsers = async (req, res, next) => {
+    // Middleware isAdmin nên được áp dụng cho route này
     try {
-        const { name, email, password } = req.body;
-
-        // Check if user exists
-        const userExists = await User.findOne({ where: { email } });
-        if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
-        }
-
-        // Create user
-        const user = await User.create({
-            name,
-            email,
-            password
+        const users = await User.findAll({
+            attributes: { exclude: ['password'] } // Luôn loại trừ mật khẩu
         });
-
-        if (user) {
-            res.status(201).json({
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                token: generateToken(user.id)
-            });
-        }
+        res.json(users);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Get all users error:', error);
+        res.status(500).json({ message: 'Error fetching users.', error: error.message });
+        // Hoặc: next(error);
     }
 };
 
-// @desc    Auth user & get token
-// @route   POST /api/users/login
-// @access  Public
-const loginUser = async (req, res) => {
+// Ví dụ: Admin cập nhật thông tin người dùng (bao gồm cả vai trò)
+const updateUserByAdmin = async (req, res, next) => {
+    // Middleware isAdmin nên được áp dụng
     try {
-        const { email, password } = req.body;
+        const { userId } = req.params;
+        const { name, email, role, isActive, phone, address } = req.body;
 
-        // Check for user email
-        const user = await User.findOne({ where: { email } });
+        const user = await User.findByPk(userId);
         if (!user) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Check password
-        const isMatch = await user.checkPassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
-
-        res.json({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            token: generateToken(user.id)
-        });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-};
-
-// @desc    Get user profile
-// @route   GET /api/users/profile
-// @access  Private
-const getUserProfile = async (req, res) => {
-    try {
-        const user = await User.findByPk(req.user.id, {
-            attributes: { exclude: ['password'] }
-        });
-
-        if (user) {
-            res.json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
-        }
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-};
-
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
-const updateUserProfile = async (req, res) => {
-    try {
-        const user = await User.findByPk(req.user.id);
-
-        if (user) {
-            user.name = req.body.name || user.name;
-            user.email = req.body.email || user.email;
-            if (req.body.password) {
-                user.password = req.body.password;
+        // Kiểm tra email mới có bị trùng không nếu email được thay đổi
+        if (email && email !== user.email) {
+            const existingUser = await User.findOne({ where: { email } });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email already in use by another account.' });
             }
-            if (req.body.image) {
-                user.image = req.body.image;
-            }
-
-            const updatedUser = await user.save();
-
-            res.json({
-                id: updatedUser.id,
-                name: updatedUser.name,
-                email: updatedUser.email,
-                role: updatedUser.role,
-                image: updatedUser.image,
-                token: generateToken(updatedUser.id)
-            });
-        } else {
-            res.status(404).json({ message: 'User not found' });
         }
+        
+        user.name = name || user.name;
+        user.email = email || user.email;
+        user.role = role || user.role;
+        user.isActive = typeof isActive === 'boolean' ? isActive : user.isActive;
+        user.phone = phone || user.phone;
+        user.address = address || user.address;
+
+        // Mật khẩu nên được đặt lại qua một quy trình riêng nếu admin cần
+        // Không nên cho phép admin đặt mật khẩu trực tiếp ở đây mà không có cơ chế an toàn
+
+        await user.save();
+        const { password, ...userWithoutPassword } = user.toJSON();
+        res.json({ message: 'User updated successfully by admin.', user: userWithoutPassword });
+
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Update user by admin error:', error);
+        if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(400).json({ message: error.errors.map(e => e.message).join(', ') });
+        }
+        res.status(500).json({ message: 'Error updating user by admin.', error: error.message });
+        // Hoặc: next(error);
     }
 };
+
+
+// Các hàm registerUser, loginUser, getUserProfile, updateUserProfile (cho người dùng tự cập nhật)
+// đã được chuyển sang auth.controller.js.
 
 module.exports = {
-    registerUser,
-    loginUser,
-    getUserProfile,
-    updateUserProfile
-}; 
+    getAllUsers,       // Ví dụ hàm mới cho admin
+    updateUserByAdmin, // Ví dụ hàm mới cho admin
+    // Các hàm cũ (registerUser, loginUser, getUserProfile, updateUserProfile) đã bị loại bỏ khỏi đây
+};

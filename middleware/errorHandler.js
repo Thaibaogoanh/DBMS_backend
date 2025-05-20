@@ -1,51 +1,45 @@
 const errorHandler = (err, req, res, next) => {
-    let error = { ...err };
-    error.message = err.message;
-
-    // Log to console for dev
-    console.error(err);
+    console.error(err.stack);
 
     // Sequelize validation error
     if (err.name === 'SequelizeValidationError') {
-        const message = Object.values(err.errors).map(val => val.message);
-        error.message = message;
-        res.status(400).json({
-            success: false,
-            error: message
+        return res.status(400).json({
+            message: 'Validation error',
+            errors: err.errors.map(e => ({
+                field: e.path,
+                message: e.message
+            }))
         });
     }
 
     // Sequelize unique constraint error
     if (err.name === 'SequelizeUniqueConstraintError') {
-        const message = Object.values(err.errors).map(val => val.message);
-        error.message = message;
-        res.status(400).json({
-            success: false,
-            error: message
+        return res.status(400).json({
+            message: 'Duplicate entry',
+            errors: err.errors.map(e => ({
+                field: e.path,
+                message: e.message
+            }))
         });
     }
 
     // JWT errors
     if (err.name === 'JsonWebTokenError') {
-        error.message = 'Invalid token';
-        res.status(401).json({
-            success: false,
-            error: error.message
+        return res.status(401).json({
+            message: 'Invalid token'
         });
     }
 
     if (err.name === 'TokenExpiredError') {
-        error.message = 'Token expired';
-        res.status(401).json({
-            success: false,
-            error: error.message
+        return res.status(401).json({
+            message: 'Token expired'
         });
     }
 
     // Default error
-    res.status(error.statusCode || 500).json({
-        success: false,
-        error: error.message || 'Server Error'
+    res.status(err.status || 500).json({
+        message: err.message || 'Internal server error',
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
 };
 
