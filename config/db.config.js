@@ -1,26 +1,17 @@
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+// config/db.config.js
+require('dotenv').config(); // Load environment variables from .env file
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: 'postgres',
-    port: process.env.DB_PORT,
-  }
-);
-
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Connection has been established successfully.');
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
+module.exports = {
+  HOST: process.env.DB_HOST || "localhost",
+  USER: process.env.DB_USER || "postgres",
+  PASSWORD: process.env.DB_PASSWORD || "root123", // Uses .env password or fallback
+  DB: process.env.DB_NAME || "dbms",
+  PORT: process.env.DB_PORT || 5432,
+  dialect: "postgres",
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000, // milliseconds
+    idle: 10000    // milliseconds
   }
 };
-
-testConnection();
-
-module.exports = sequelize;
