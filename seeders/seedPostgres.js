@@ -1,110 +1,150 @@
 // seeders/seedPostgres.js
-const getSampleData = require('../data/sampleData'); // Đường dẫn đến file sampleData.js
-const { User, Category, Product, Review, Order, OrderItem, sequelize } = require('../models'); // Import tất cả models và sequelize instance
-const { v4: uuidv4 } = require('uuid');
+const getSampleData = require('../data/sampleData');
+const { User, Category, Product, Review, Order, OrderItem, sequelize } = require('../models');
 
 const seedPostgresDatabase = async (force = false) => {
     try {
         if (force) {
-            console.log('Forcing database sync for PostgreSQL - dropping all tables...');
-            await sequelize.sync({ force: true }); // Xóa và tạo lại bảng
-            console.log('PostgreSQL database synchronized and wiped.');
+            console.log('PostgreSQL: Forcing database sync - dropping all tables...');
+            await sequelize.sync({ force: true });
+            console.log('PostgreSQL: Database synchronized and wiped.');
         } else {
-            // Kiểm tra xem dữ liệu đã tồn tại chưa để tránh seeding lại không cần thiết
             const adminUser = await User.findOne({ where: { email: 'admin@example.com' } });
             if (adminUser) {
-                console.log('Admin user already exists in PostgreSQL. Skipping seeding.');
-                return;
+                console.log('PostgreSQL: Admin user already exists. Checking for first sample product...');
+                const sampleProductsData = (await getSampleData()).products; // Gọi một lần để lấy dữ liệu
+                if (sampleProductsData && sampleProductsData.length > 0 && sampleProductsData[0].id) {
+                    const firstSampleProduct = await Product.findByPk(sampleProductsData[0].id);
+                    if (firstSampleProduct) {
+                        console.log(`PostgreSQL: First sample product (ID: ${sampleProductsData[0].id}) also exists. Seeding will be skipped unless forced.`);
+                        return;
+                    }
+                }
             }
-            console.log('No admin user found, proceeding with PostgreSQL seeding...');
+            console.log('PostgreSQL: No admin user or first sample product found, proceeding with seeding...');
         }
 
-        const { users, categories, products: sampleProductsArray } = await getSampleData();
+        // Gọi getSampleData MỘT LẦN DUY NHẤT ở đầu để đảm bảo ID nhất quán trong suốt quá trình seeding này
+        const sample = await getSampleData();
+        const { users, categories, products, reviews, orders, orderItems } = sample;
 
-        console.log('Seeding Users for PostgreSQL...');
-        await User.bulkCreate(users, { ignoreDuplicates: true });
-        console.log('Users seeded.');
-
-        console.log('Seeding Categories for PostgreSQL...');
-        await Category.bulkCreate(categories, { ignoreDuplicates: true });
-        console.log('Categories seeded.');
-
-        console.log('Seeding Products for PostgreSQL...');
-        await Product.bulkCreate(sampleProductsArray, { ignoreDuplicates: true });
-        console.log('Products seeded.');
-
-        // Lấy lại ID thực tế từ DB (quan trọng nếu DB tự tạo ID hoặc có thay đổi)
-        const createdUsers = await User.findAll({ where: { email: users.map(u => u.email) } });
-        const createdProducts = await Product.findAll({ where: { title: sampleProductsArray.map(p => p.title) } });
-        
-        if (createdUsers.length < 2 || createdProducts.length < 3) {
-            console.warn('Not enough users or products found after seeding to create reviews and orders.');
-            return;
+        console.log('PostgreSQL: Seeding Users...');
+        // Log ID của user mẫu đầu tiên
+        if (users.length > 0) console.log(`PostgreSQL: Sample User 1 ID for seeding: ${users[0].id}`);
+        await User.bulkCreate(users, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: Users seeded.');
+        // Kiểm tra lại User đã tạo
+        if (users.length > 0) {
+            const createdAdmin = await User.findByPk(users[0].id);
+            console.log(`PostgreSQL: Admin User in DB after seeding - ID: ${createdAdmin?.id}, Email: ${createdAdmin?.email}`);
         }
 
-        // --- REVIEWS (Ví dụ) ---
-        console.log('Seeding Reviews for PostgreSQL...');
-        const reviewsData = [
-            { userId: createdUsers[1].id, productId: createdProducts[0].id, rating: 5, comment: 'Sản phẩm tuyệt vời, rất đáng tiền!', isActive: true, isVerified: true },
-            { userId: createdUsers[2].id, productId: createdProducts[0].id, rating: 4, comment: 'Khá tốt, nhưng giá hơi cao một chút.', isActive: true },
-            { userId: createdUsers[1].id, productId: createdProducts[2].id, rating: 5, comment: 'Điện thoại chụp ảnh siêu đẹp!', isActive: true, isVerified: true },
-            { userId: createdUsers[2].id, productId: createdProducts[1].id, rating: 3, comment: 'Máy hơi nóng khi dùng lâu.', isActive: true },
-        ];
-        await Review.bulkCreate(reviewsData, { ignoreDuplicates: true });
-        console.log('Reviews seeded.');
 
-        // Cập nhật averageRating và numReviews cho Products
-        for (const product of createdProducts) {
+        console.log('PostgreSQL: Seeding Categories...');
+        if (categories.length > 0) console.log(`PostgreSQL: Sample Category 1 ID for seeding: ${categories[0].id}`);
+        await Category.bulkCreate(categories, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: Categories seeded.');
+
+
+        console.log('PostgreSQL: Preparing products for seeding (using fixed IDs from sampleData)...');
+        const productsToCreate = products.map(p => {
+            if (!p.id) { // Kiểm tra này vẫn quan trọng
+                console.warn(`PostgreSQL Seeding: Product with title "${p.title}" is missing an ID in sampleData!`);
+            }
+            console.log(`PostgreSQL: Preparing product with PREDEFINED ID: ${p.id}, Title: ${p.title}`);
+            return { // Đảm bảo tất cả các trường cần thiết cho Product model đều có ở đây
+                id: p.id,
+                name: p.name,
+                title: p.title,
+                description: p.description,
+                price: p.price,
+                oldPrice: p.oldPrice,
+                stock: p.stock,
+                quantity: p.quantity !== undefined ? p.quantity : p.stock,
+                image: p.image,
+                images: p.images,
+                categoryId: p.categoryId, // ID này cũng phải cố định từ sampleData
+                isActive: p.isActive !== undefined ? p.isActive : true,
+                averageRating: p.averageRating !== undefined ? p.averageRating : 0,
+                numReviews: p.numReviews !== undefined ? p.numReviews : 0,
+                isNew: p.isNew !== undefined ? p.isNew : false,
+                isFeatured: p.isFeatured !== undefined ? p.isFeatured : false,
+            };
+        });
+        await Product.bulkCreate(productsToCreate, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: Products seeded.');
+
+        // KIỂM TRA ID SẢN PHẨM SAU KHI SEED
+        console.log('PostgreSQL: Verifying product IDs in DB after seeding...');
+        for (const sampleProduct of products) {
+            const createdProduct = await Product.findByPk(sampleProduct.id);
+            if (createdProduct) {
+                console.log(`PostgreSQL: Product Title: "${sampleProduct.title}", Sample ID: ${sampleProduct.id}, DB ID: ${createdProduct.id} -> ${sampleProduct.id === createdProduct.id ? 'MATCH!' : 'MISMATCH!'}`);
+                if (sampleProduct.id !== createdProduct.id) {
+                    console.error(`CRITICAL ID MISMATCH for product: ${sampleProduct.title}. Sequelize might be ignoring provided IDs.`);
+                }
+            } else {
+                console.warn(`PostgreSQL: Product with sample ID ${sampleProduct.id} (Title: "${sampleProduct.title}") NOT FOUND in DB after seeding.`);
+            }
+        }
+
+        // Seeding Reviews, Orders, OrderItems sẽ trực tiếp sử dụng ID từ sample.users, sample.products, sample.orders
+        // vì chúng ta tin rằng các bước bulkCreate ở trên đã sử dụng đúng các ID đó.
+
+        console.log('PostgreSQL: Seeding Reviews...');
+        // Đảm bảo review.userId và review.productId là các ID cố định từ sampleData
+        const reviewsToCreate = reviews.map(review => ({
+            id: review.id, // Nếu review cũng có ID cố định
+            userId: review.userId,
+            productId: review.productId,
+            rating: review.rating,
+            comment: review.comment,
+            isActive: review.isActive !== undefined ? review.isActive : true,
+            isVerified: review.isVerified !== undefined ? review.isVerified : false,
+        }));
+        await Review.bulkCreate(reviewsToCreate, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: Reviews seeded.');
+
+        console.log('PostgreSQL: Updating product ratings...');
+        const allCreatedProducts = await Product.findAll(); // Lấy tất cả sản phẩm từ DB
+        for (const product of allCreatedProducts) {
             const productReviews = await Review.findAll({ where: { productId: product.id, isActive: true } });
-            const totalRating = productReviews.reduce((acc, review) => acc + review.rating, 0);
-            product.numReviews = productReviews.length;
-            product.averageRating = productReviews.length > 0 ? parseFloat((totalRating / productReviews.length).toFixed(2)) : 0;
-            await product.save();
+            const totalRating = productReviews.reduce((acc, rev) => acc + rev.rating, 0);
+            const numReviews = productReviews.length;
+            const averageRating = numReviews > 0 ? parseFloat((totalRating / numReviews).toFixed(2)) : 0;
+
+            await Product.update(
+                { numReviews: numReviews, averageRating: averageRating },
+                { where: { id: product.id } }
+            );
         }
-        console.log('Product ratings updated.');
+        console.log('PostgreSQL: Product ratings updated.');
 
+        console.log('PostgreSQL: Seeding Orders...');
+        // Đảm bảo order.userId là ID cố định từ sampleData
+        await Order.bulkCreate(orders, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: Orders seeded.');
 
-        // --- ORDERS & ORDER ITEMS (Ví dụ) ---
-        console.log('Seeding Orders and OrderItems for PostgreSQL...');
-        const order1Id = uuidv4();
-        const order2Id = uuidv4();
+        console.log('PostgreSQL: Seeding OrderItems...');
+        // Đảm bảo item.orderId và item.productId là ID cố định từ sampleData
+        await OrderItem.bulkCreate(orderItems, { validate: true, ignoreDuplicates: true });
+        console.log('PostgreSQL: OrderItems seeded.');
 
-        const ordersData = [
-            { 
-                id: order1Id, 
-                userId: createdUsers[1].id, // Alice
-                totalAmount: createdProducts[0].price * 1 + createdProducts[2].price * 1, 
-                shippingAddress: createdUsers[1].address, 
-                paymentMethod: 'COD', 
-                status: 'delivered', 
-                paymentStatus: 'completed' 
-            },
-            { 
-                id: order2Id, 
-                userId: createdUsers[2].id, // Bob
-                totalAmount: createdProducts[1].price * 2, 
-                shippingAddress: createdUsers[2].address, 
-                paymentMethod: 'CreditCard', 
-                status: 'processing', 
-                paymentStatus: 'completed' 
-            },
-        ];
-        await Order.bulkCreate(ordersData, { ignoreDuplicates: true });
+        console.log('PostgreSQL: Updating product stock based on sample orders...');
+        for (const item of orderItems) { // Dùng orderItems từ sampleData
+            const product = await Product.findByPk(item.productId); // item.productId là ID cố định
+            if (product) {
+                const newStock = (product.stock || 0) - item.quantity;
+                await product.update({ stock: newStock < 0 ? 0 : newStock });
+            }
+        }
+        console.log('PostgreSQL: Product stock updated.');
 
-        const orderItemsData = [
-            // Order 1
-            { orderId: order1Id, productId: createdProducts[0].id, quantity: 1, price: createdProducts[0].price, subtotal: createdProducts[0].price * 1 },
-            { orderId: order1Id, productId: createdProducts[2].id, quantity: 1, price: createdProducts[2].price, subtotal: createdProducts[2].price * 1 },
-            // Order 2
-            { orderId: order2Id, productId: createdProducts[1].id, quantity: 2, price: createdProducts[1].price, subtotal: createdProducts[1].price * 2 },
-        ];
-        await OrderItem.bulkCreate(orderItemsData, { ignoreDuplicates: true });
-        console.log('Orders and OrderItems seeded.');
-
-        console.log('PostgreSQL database seeding completed successfully.');
+        console.log('PostgreSQL: Database seeding completed successfully.');
 
     } catch (error) {
-        console.error('Error seeding PostgreSQL database:', error);
+        console.error('PostgreSQL: Error seeding database:', error);
+        throw error;
     }
 };
 

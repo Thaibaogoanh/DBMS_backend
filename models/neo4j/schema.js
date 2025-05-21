@@ -1,68 +1,67 @@
 // models/neo4j/schema.js
-// Giả sử file neo4j.config.js nằm ở thư mục config ở gốc dự án
-// Đường dẫn ../../config/neo4j.config là tương đối từ models/neo4j/
-const { getSession, closeDriver } = require('../../config/neo4j.config'); 
-// Giả sử file sampleData.js nằm ở thư mục data ở gốc dự án
-// Đường dẫn ../../data/sampleData.js là tương đối từ models/neo4j/
+const { getSession } = require('../../config/neo4j.config'); 
 const getSampleData = require('../../data/sampleData'); 
 
 const createConstraints = async () => {
-    const session = getSession(); // Lấy session từ driver đã được khởi tạo
+    let session; 
     try {
+        session = getSession(); 
+        console.log('Neo4j: Executing constraints checks...');
         await session.run('CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE');
         await session.run('CREATE CONSTRAINT user_email IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE');
         await session.run('CREATE CONSTRAINT product_id IF NOT EXISTS FOR (p:Product) REQUIRE p.id IS UNIQUE');
-        await session.run('CREATE INDEX product_title IF NOT EXISTS FOR (p:Product) ON (p.title)');
-        // await session.run('CREATE INDEX product_category_name IF NOT EXISTS FOR (p:Product) ON (p.categoryName)'); 
+        await session.run('CREATE INDEX product_title_neo4j IF NOT EXISTS FOR (p:Product) ON (p.title)');
         await session.run('CREATE CONSTRAINT category_id IF NOT EXISTS FOR (c:Category) REQUIRE c.id IS UNIQUE');
         await session.run('CREATE CONSTRAINT category_name IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS UNIQUE');
-        console.log('Neo4j constraints checked/created successfully.');
+        console.log('Neo4j: Constraints checked/created successfully.');
     } catch (error) {
-        console.error('Error creating/checking Neo4j constraints:', error);
-        throw error; // Ném lỗi để app.js có thể bắt nếu cần
+        console.error('Neo4j: Error creating/checking constraints:', error);
+        throw error; 
     } finally {
         if (session) {
-            await session.close(); // Luôn đóng session sau khi sử dụng
+            await session.close(); 
         }
     }
 };
 
 const seedNeo4jDatabase = async (force = false) => {
-    const session = getSession();
+    let session; 
     try {
+        session = getSession(); 
+        console.log('Neo4j: Starting database seeding...');
         if (force) {
-            console.log('Forcing data wipe for Neo4j...');
+            console.log('Neo4j: Forcing data wipe...');
             await session.run('MATCH (n) DETACH DELETE n');
-            console.log('Neo4j database wiped.');
+            console.log('Neo4j: Database wiped.');
         } else {
-            // Kiểm tra admin user (hoặc một node bất kỳ) để xem có cần seed không
-            const result = await session.run('MATCH (u:User {id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"}) RETURN u.id AS id');
+            const adminUserEmail = 'admin@example.com'; 
+            const result = await session.run('MATCH (u:User {email: $email}) RETURN u.id AS id', { email: adminUserEmail });
             if (result.records.length > 0) {
-                console.log('Admin user already exists in Neo4j. Skipping Neo4j data seeding.');
+                console.log(`Neo4j: User with email '${adminUserEmail}' already exists. Skipping data seeding to avoid conflicts.`);
+                if (session) await session.close(); 
                 return;
             }
-            console.log('No admin user found in Neo4j, proceeding with Neo4j data seeding...');
+            console.log(`Neo4j: No user found with email '${adminUserEmail}', proceeding with data seeding...`);
         }
 
-        const { users, categories, products: sampleProductsArray } = await getSampleData();
+        const { users, categories, products, orders, orderItems } = await getSampleData();
 
-        console.log('Seeding Users for Neo4j...');
+        console.log('Neo4j: Seeding Users...');
         for (const user of users) {
-            // Chỉ lưu các trường cần thiết cho Neo4j, không lưu password đã hash
             await session.run(
-                'MERGE (u:User {id: $id}) SET u.name = $name, u.email = $email, u.role = $role',
-                { id: user.id, name: user.name, email: user.email, role: user.role }
+                'MERGE (u:User {id: $id}) SET u.name = $name, u.email = $email, u.role = $role, u.image = $image, u.address = $address',
+                { id: user.id, name: user.name, email: user.email, role: user.role, image: user.image, address: user.address }
             );
         }
-        console.log('Neo4j Users seeded.');
+        console.log('Neo4j: Users seeded.');
 
-        console.log('Seeding Categories for Neo4j...');
+        console.log('Neo4j: Seeding Categories...');
         for (const category of categories) {
             await session.run(
-                'MERGE (c:Category {id: $id}) SET c.name = $name, c.description = $description, c.image = $image',
-                { id: category.id, name: category.name, description: category.description, image: category.image }
+                'MERGE (c:Category {id: $id}) SET c.name = $name, c.description = $description, c.image = $image, c.isActive = $isActive', // Thêm isActive
+                { id: category.id, name: category.name, description: category.description, image: category.image, isActive: category.isActive !== undefined ? category.isActive : true } // Mặc định là true nếu không có
             );
-            if (category.parentId) {
+            if (category.parentId) { 
                 await session.run(
                     `MATCH (child:Category {id: $childId})
                      MATCH (parent:Category {id: $parentId})
@@ -71,13 +70,17 @@ const seedNeo4jDatabase = async (force = false) => {
                 );
             }
         }
-        console.log('Neo4j Categories seeded.');
+        console.log('Neo4j: Categories seeded.');
 
-        console.log('Seeding Products for Neo4j...');
-        for (const product of sampleProductsArray) {
+        console.log('Neo4j: Seeding Products...');
+        for (const product of products) {
             await session.run(
                 `MERGE (p:Product {id: $id})
-                 SET p.title = $title, p.name = $name, p.price = $price, p.image = $image, p.description = $description
+                 SET p.title = $title, p.name = $name, p.price = $price, p.image = $image, 
+                     p.description = $description, p.stock = $stock, 
+                     p.averageRating = $averageRating, p.numReviews = $numReviews,
+                     p.isNew = $isNew, p.isFeatured = $isFeatured,
+                     p.isActive = $isActive  // <<< THÊM DÒNG NÀY
                  WITH p
                  MATCH (c:Category {id: $categoryId})
                  MERGE (p)-[:BELONGS_TO]->(c)`,
@@ -87,64 +90,73 @@ const seedNeo4jDatabase = async (force = false) => {
                     name: product.name, 
                     price: product.price,
                     image: product.image,
-                    description: product.description, // Thêm description nếu cần cho Neo4j
-                    categoryId: product.categoryId 
+                    description: product.description,
+                    stock: product.stock,
+                    averageRating: product.averageRating === undefined ? 0 : product.averageRating, // Đảm bảo có giá trị mặc định
+                    numReviews: product.numReviews === undefined ? 0 : product.numReviews, // Đảm bảo có giá trị mặc định
+                    isNew: product.isNew === undefined ? false : product.isNew, // Đảm bảo có giá trị mặc định
+                    isFeatured: product.isFeatured === undefined ? false : product.isFeatured, // Đảm bảo có giá trị mặc định
+                    categoryId: product.categoryId,
+                    isActive: product.isActive !== undefined ? product.isActive : true // <<< THÊM THAM SỐ NÀY, mặc định là true nếu không có trong sampleData
                 }
             );
         }
-        console.log('Neo4j Products seeded.');
+        console.log('Neo4j: Products seeded.');
         
-        // --- SEED PURCHASE RELATIONSHIPS (Ví dụ) ---
-        const createdUsers = users; 
-        const createdProducts = sampleProductsArray;
+        console.log('Neo4j: Seeding PURCHASED relationships based on sample orders...');
+        for (const order of orders) {
+            const orderUser = users.find(u => u.id === order.userId);
+            if (!orderUser) {
+                console.warn(`Neo4j Seeding: User with ID ${order.userId} for order ${order.id} not found.`);
+                continue;
+            }
 
-        if (createdUsers.length >= 2 && createdProducts.length >=3) { // Đảm bảo đủ user và product để tạo mối quan hệ
-            console.log('Seeding PURCHASED relationships for Neo4j...');
-            // Alice (users[1]) mua Laptop Pro Max (products[0]) và Smartphone X100 (products[2])
-            await session.run(
-                `MATCH (u:User {id: $userId}), (p:Product {id: $productId})
-                 MERGE (u)-[r:PURCHASED {timestamp: datetime()}]->(p)`,
-                { userId: createdUsers[1].id, productId: createdProducts[0].id }
-            );
-            await session.run(
-                `MATCH (u:User {id: $userId}), (p:Product {id: $productId})
-                 MERGE (u)-[r:PURCHASED {timestamp: datetime()}]->(p)`,
-                { userId: createdUsers[1].id, productId: createdProducts[2].id }
-            );
-
-            // Bob (users[2]) mua Laptop Ultra Slim (products[1])
-            await session.run(
-                `MATCH (u:User {id: $userId}), (p:Product {id: $productId})
-                 MERGE (u)-[r:PURCHASED {timestamp: datetime()}]->(p)`,
-                { userId: createdUsers[2].id, productId: createdProducts[1].id }
-            );
-            console.log('Neo4j PURCHASED relationships seeded.');
-        } else {
-             console.warn('Not enough users or products in sample data to create purchase relationships for Neo4j.');
+            const itemsInThisOrder = orderItems.filter(oi => oi.orderId === order.id);
+            for (const item of itemsInThisOrder) {
+                const product = products.find(p => p.id === item.productId);
+                if (!product) {
+                    console.warn(`Neo4j Seeding: Product with ID ${item.productId} in order ${order.id} not found.`);
+                    continue;
+                }
+                
+                await session.run(
+                    `MATCH (u:User {id: $userId}), (p:Product {id: $productId})
+                     MERGE (u)-[r:PURCHASED]->(p)
+                     ON CREATE SET r.timestamp = datetime($orderCreatedAt), r.quantity = $quantity, r.priceAtPurchase = $price, r.orderId = $orderId, r.count = 1
+                     ON MATCH SET r.lastPurchased = datetime($orderCreatedAt), r.count = COALESCE(r.count, 0) + $quantity 
+                    `, 
+                    { 
+                        userId: orderUser.id, 
+                        productId: product.id,
+                        quantity: item.quantity,
+                        price: item.price, 
+                        orderId: order.id,
+                        orderCreatedAt: order.createdAt ? new Date(order.createdAt).toISOString() : datetime().toString() 
+                    }
+                );
+            }
         }
+        console.log('Neo4j: PURCHASED relationships seeded.');
         
-        console.log('Neo4j database seeding completed successfully.');
+        console.log('Neo4j: Database seeding completed successfully.');
 
     } catch (error) {
-        console.error('Error seeding Neo4j database:', error);
-        throw error; // Ném lỗi để app.js có thể bắt nếu cần
+        console.error('Neo4j: Error seeding database:', error);
+        throw error; 
     } finally {
         if (session) {
-            await session.close(); // Luôn đóng session
+            await session.close(); 
         }
     }
 };
 
-// Hàm này được gọi từ app.js
 const initializeAndSeedNeo4j = async (forceSeed = false) => {
     try {
-        await createConstraints(); // Luôn kiểm tra/tạo constraints
-        await seedNeo4jDatabase(forceSeed); // Seed dữ liệu
+        await createConstraints(); 
+        await seedNeo4jDatabase(forceSeed); 
     } catch (error) {
-        console.error("Failed to initialize and seed Neo4j:", error);
-        // Không ném lỗi ở đây nữa vì đã ném ở các hàm con, app.js sẽ bắt
+        console.error("Neo4j: Failed to initialize and seed:", error.message);
     }
-    // Không gọi closeDriver() ở đây vì driver được quản lý bởi app.js
 };
 
 module.exports = {
