@@ -1,5 +1,3 @@
-// data/sampleData.js
-// Bạn nên tạo file này trong thư mục gốc của dự án hoặc một thư mục con như 'data' hoặc 'seeders'
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid'); // Để tạo ID nếu model không tự tạo
 
@@ -21,60 +19,67 @@ const sampleData = async () => {
 
     // --- CATEGORIES ---
     // Cấp 1
-    const catElectronicsId = uuidv4();
-    const catClothingId = uuidv4();
-    const catBooksId = uuidv4();
-    // Cấp 2
+    const catElectronicsId = uuidv4(); // Vẫn giữ category gốc
+    const catClothingId = uuidv4();    // ID cho "Thời trang"
+    const catBooksId = uuidv4();       // Vẫn giữ category gốc
+    // Cấp 2 - Điện tử (Sẽ không có sản phẩm nào thuộc các category này)
     const catLaptopsId = uuidv4();
     const catSmartphonesId = uuidv4();
+    // Cấp 2 - Thời trang
     const catShirtsId = uuidv4();
+    const catJeansId = uuidv4();
+    const catDressesId = uuidv4();
+    const catJacketsId = uuidv4();
+    const catAccessoriesId = uuidv4(); // Phụ kiện thời trang
 
     const categories = [
         // Cấp 1
         { id: catElectronicsId, name: 'Điện tử', description: 'Các thiết bị điện tử và phụ kiện.', image: 'https://placehold.co/300x200?text=Dien+Tu' },
         { id: catClothingId, name: 'Thời trang', description: 'Quần áo và phụ kiện thời trang.', image: 'https://placehold.co/300x200?text=Thoi+Trang' },
         { id: catBooksId, name: 'Sách', description: 'Các loại sách và truyện.', image: 'https://placehold.co/300x200?text=Sach' },
-        // Cấp 2
+        // Cấp 2 - Điện tử (Vẫn giữ để thể hiện cấu trúc, dù không có sản phẩm)
         { id: catLaptopsId, name: 'Máy tính xách tay', description: 'Laptop cho công việc và giải trí.', image: 'https://placehold.co/300x200?text=Laptop', parentId: catElectronicsId },
         { id: catSmartphonesId, name: 'Điện thoại thông minh', description: 'Các dòng điện thoại mới nhất.', image: 'https://placehold.co/300x200?text=Smartphone', parentId: catElectronicsId },
+        // Cấp 2 - Thời trang
         { id: catShirtsId, name: 'Áo sơ mi', description: 'Áo sơ mi nam nữ.', image: 'https://placehold.co/300x200?text=Ao+So+Mi', parentId: catClothingId },
+        { id: catJeansId, name: 'Quần Jeans', description: 'Quần jeans thời trang nam nữ.', image: 'https://placehold.co/300x200?text=Quan+Jeans', parentId: catClothingId },
+        { id: catDressesId, name: 'Váy Đầm', description: 'Váy đầm dự tiệc và dạo phố.', image: 'https://placehold.co/300x200?text=Vay+Dam', parentId: catClothingId },
+        { id: catJacketsId, name: 'Áo Khoác', description: 'Áo khoác giữ ấm và thời trang.', image: 'https://placehold.co/300x200?text=Ao+Khoac', parentId: catClothingId },
+        { id: catAccessoriesId, name: 'Phụ kiện', description: 'Phụ kiện thời trang như mũ, túi xách, thắt lưng.', image: 'https://placehold.co/300x200?text=Phu+Kien', parentId: catClothingId },
     ];
 
     // --- PRODUCTS ---
-    const prodLaptop1Id = uuidv4();
-    const prodLaptop2Id = uuidv4();
-    const prodPhone1Id = uuidv4();
+    // ID cho sản phẩm thời trang (1 sản phẩm áo sơ mi có sẵn + 10 sản phẩm mới)
     const prodShirt1Id = uuidv4();
-    const prodBook1Id = uuidv4();
+    const prodFashionShirt2Id = uuidv4();
+    const prodFashionJean1Id = uuidv4();
+    const prodFashionJean2Id = uuidv4();
+    const prodFashionDress1Id = uuidv4();
+    const prodFashionDress2Id = uuidv4();
+    const prodFashionJacket1Id = uuidv4();
+    const prodFashionJacket2Id = uuidv4();
+    const prodFashionHat1Id = uuidv4();
+    const prodFashionBag1Id = uuidv4();
+    const prodFashionBelt1Id = uuidv4();
 
     const products = [
-        { id: prodLaptop1Id, title: 'Laptop Pro Max 2025', name: 'Laptop Pro Max 2025', description: 'Siêu phẩm laptop với hiệu năng đỉnh cao.', price: 35000000, stock: 15, categoryId: catLaptopsId, image: 'https://placehold.co/600x400?text=Laptop+Pro+Max', images: ['https://placehold.co/600x400/EFEFEF/AAAAAA&text=Laptop1_1', 'https://placehold.co/600x400/EFEFEF/AAAAAA&text=Laptop1_2'], averageRating: 0, numReviews: 0, isNew: true, isFeatured: true },
-        { id: prodLaptop2Id, title: 'Laptop Ultra Slim', name: 'Laptop Ultra Slim', description: 'Thiết kế mỏng nhẹ, tiện lợi di chuyển.', price: 22000000, stock: 25, categoryId: catLaptopsId, image: 'https://placehold.co/600x400?text=Laptop+Ultra+Slim', averageRating: 0, numReviews: 0, isNew: true },
-        { id: prodPhone1Id, title: 'Smartphone X100', name: 'Smartphone X100', description: 'Điện thoại thông minh với camera siêu nét.', price: 18500000, stock: 30, categoryId: catSmartphonesId, image: 'https://placehold.co/600x400?text=Smartphone+X100', averageRating: 0, numReviews: 0, isFeatured: true },
-        { id: prodShirt1Id, title: 'Áo Sơ Mi Lụa Cao Cấp', name: 'Áo Sơ Mi Lụa Cao Cấp', description: 'Chất liệu lụa mềm mại, thoáng mát.', price: 750000, stock: 50, categoryId: catShirtsId, image: 'https://placehold.co/600x400?text=Ao+So+Mi+Lua', averageRating: 0, numReviews: 0 },
-        { id: prodBook1Id, title: 'Lập Trình Với Node.js', name: 'Lập Trình Với Node.js', description: 'Cẩm nang toàn diện về Node.js cho người mới bắt đầu và chuyên gia.', price: 250000, stock: 100, categoryId: catBooksId, image: 'https://placehold.co/600x400?text=Sach+NodeJS', averageRating: 0, numReviews: 0 },
+        // SẢN PHẨM THỜI TRANG
+        { id: prodShirt1Id, title: 'Áo Sơ Mi Lụa Cao Cấp', name: 'Áo Sơ Mi Lụa Cao Cấp', description: 'Chất liệu lụa mềm mại, thoáng mát.', price: 750000, stock: 50, categoryId: catShirtsId, image: 'https://cdn.kkfashion.vn/18179-home_default/ao-so-mi-nu-cong-so-basic-tay-dai-asm11-22.jpg', averageRating: 0, numReviews: 0 },
+        { id: prodFashionShirt2Id, title: 'Áo Sơ Mi Kẻ Caro Năng Động', name: 'Áo Sơ Mi Kẻ Caro Năng Động', description: 'Họa tiết kẻ caro trẻ trung, chất liệu cotton thấm hút mồ hôi.', price: 480000, stock: 60, categoryId: catShirtsId, image: 'https://salt.tikicdn.com/cache/w1200/ts/product/b0/39/86/7595f7ce0f4c89388adbd6c6e11897d6.jpg', averageRating: 0, numReviews: 0, isNew: true },
+        { id: prodFashionJean1Id, title: 'Quần Jeans Nữ Skinny Co Giãn', name: 'Quần Jeans Nữ Skinny Co Giãn', description: 'Form skinny tôn dáng, chất liệu jean co giãn thoải mái vận động.', price: 620000, stock: 45, categoryId: catJeansId, image: 'https://th.bing.com/th/id/OIP.vamjwH5nDcOFIMFuM55TSAHaLG?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0, isFeatured: true },
+        { id: prodFashionJean2Id, title: 'Quần Jeans Nam Slim Fit Cổ Điển', name: 'Quần Jeans Nam Slim Fit Cổ Điển', description: 'Kiểu dáng slim fit hiện đại, màu xanh denim truyền thống.', price: 790000, stock: 30, categoryId: catJeansId, image: 'https://th.bing.com/th/id/OIP.Uo-e-md1Bt2IXxic8EG5rwHaJ4?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0, isNew: true },
+        { id: prodFashionDress1Id, title: 'Váy Hoa Nhí Vintage Mùa Hè', name: 'Váy Hoa Nhí Vintage Mùa Hè', description: 'Họa tiết hoa nhí dễ thương, chất voan nhẹ nhàng cho ngày hè.', price: 850000, stock: 25, categoryId: catDressesId, image: 'https://th.bing.com/th/id/OIP.hpyj1oQnc7ACCrwv-BV90AHaJ4?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0, isFeatured: true },
+        { id: prodFashionDress2Id, title: 'Đầm Dạ Hội Đuôi Cá Sang Trọng', name: 'Đầm Dạ Hội Đuôi Cá Sang Trọng', description: 'Thiết kế đuôi cá quyến rũ, chất liệu ren cao cấp.', price: 2200000, stock: 10, categoryId: catDressesId, image: 'https://product.hstatic.net/1000318527/product/141279554_2759566720950868_4151769136115659930_o_7f872a3e6d624b05a5ea7652f97d415f_master.jpg', averageRating: 0, numReviews: 0 },
+        { id: prodFashionJacket1Id, title: 'Áo Khoác Bomber Unisex Phong Cách', name: 'Áo Khoác Bomber Unisex Phong Cách', description: 'Áo khoác bomber cá tính, phù hợp cho cả nam và nữ.', price: 950000, stock: 33, categoryId: catJacketsId, image: 'https://th.bing.com/th/id/OIP.C1eJqC7tsgCJVjcoFthyGgHaHa?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0, isNew: true },
+        { id: prodFashionJacket2Id, title: 'Áo Khoác Dạ Nữ Dáng Dài Hàn Quốc', name: 'Áo Khoác Dạ Nữ Dáng Dài Hàn Quốc', description: 'Giữ ấm hiệu quả, phong cách thanh lịch chuẩn Hàn.', price: 1800000, stock: 18, categoryId: catJacketsId, image: 'https://th.bing.com/th/id/R.546f23b70e6b5183a6b8671c24f9361f?rik=bE%2bRQxytFnDcDw&pid=ImgRaw&r=0', averageRating: 0, numReviews: 0 },
+        { id: prodFashionHat1Id, title: 'Mũ Lưỡi Trai Thêu Chữ Basic', name: 'Mũ Lưỡi Trai Thêu Chữ Basic', description: 'Phụ kiện không thể thiếu, dễ phối đồ.', price: 250000, stock: 70, categoryId: catAccessoriesId, image: 'https://cf.shopee.vn/file/afb91fe401164e195dbaee2ffcdf5e0d', averageRating: 0, numReviews: 0, isFeatured: true },
+        { id: prodFashionBag1Id, title: 'Túi Tote Vải Canvas In Hình', name: 'Túi Tote Vải Canvas In Hình', description: 'Túi xách tiện lợi, thân thiện môi trường, họa tiết độc đáo.', price: 320000, stock: 40, categoryId: catAccessoriesId, image: 'https://th.bing.com/th/id/OIP.P72vSe3bdaqhYGiHwKd9JAHaHa?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0, isNew: true },
+        { id: prodFashionBelt1Id, title: 'Thắt Lưng Da Nam Mặt Khóa Kim Loại', name: 'Thắt Lưng Da Nam Mặt Khóa Kim Loại', description: 'Chất liệu da thật, mặt khóa kim loại sang trọng.', price: 550000, stock: 22, categoryId: catAccessoriesId, image: 'https://th.bing.com/th/id/OIP.rI0sJTGRAOeORePBIL3gJAHaHa?rs=1&pid=ImgDetMain', averageRating: 0, numReviews: 0 },
     ];
 
-    // --- REVIEWS ---
-    // (Sẽ được tạo sau khi có User và Product, và cập nhật averageRating cho Product)
-    // Ví dụ:
-    // { userId: users[1].id, productId: products[0].id, rating: 5, comment: 'Sản phẩm tuyệt vời!' },
-    // { userId: users[2].id, productId: products[0].id, rating: 4, comment: 'Khá tốt, nhưng giá hơi cao.' },
-
-    // --- ORDERS & ORDER ITEMS ---
-    // (Sẽ được tạo sau khi có User và Product)
-    // Ví dụ:
-    // const order1Id = uuidv4();
-    // const orders = [
-    //     { id: order1Id, userId: users[1].id, totalAmount: products[0].price * 1 + products[2].price * 1, shippingAddress: users[1].address, paymentMethod: 'COD', status: 'delivered', paymentStatus: 'completed' },
-    // ];
-    // const orderItems = [
-    //     { orderId: order1Id, productId: products[0].id, quantity: 1, price: products[0].price, subtotal: products[0].price * 1 },
-    //     { orderId: order1Id, productId: products[2].id, quantity: 1, price: products[2].price, subtotal: products[2].price * 1 },
-    // ];
+    // Các phần REVIEWS, ORDERS, ORDER ITEMS có thể được thêm sau nếu cần
     
-    return { users, categories, products /*, reviews, orders, orderItems */ };
+    return { users, categories, products };
 };
 
 module.exports = sampleData;
-
